@@ -82,79 +82,8 @@ def resize_data(data, new_height, new_width, x=0, y=0, height=None, width=None):
     
 # SETUP DATASET
 
-dataset_dir = "/raid/datasets/hackathon2024"
-root_dir = os.path.expanduser("~/automathon-2024")
-nb_frames = 30
-
-## MAKE RESIZED DATASET
-create_small_dataset = False
-resized_dir = os.path.join(dataset_dir, "resized_dataset")
-errors = []
-if not os.path.exists(resized_dir) or create_small_dataset:
-    os.mkdir(resized_dir)
-    os.mkdir(os.path.join(resized_dir, "train_dataset"))
-    os.mkdir(os.path.join(resized_dir, "test_dataset"))
-    os.mkdir(os.path.join(resized_dir, "experimental_dataset"))
-    train_files = [f for f in os.listdir(os.path.join(dataset_dir, "train_dataset")) if f.endswith('.mp4')]
-    test_files = [f for f in os.listdir(os.path.join(dataset_dir, "test_dataset")) if f.endswith('.mp4')]
-    experimental_files = [f for f in os.listdir(os.path.join(dataset_dir, "experimental_dataset")) if f.endswith('.mp4')]
-    def resize(in_video_path, out_video_path, nb_frames=10):
-        # use time to measure the time it takes to resize a video
-        t1 = time.time()
-        reader = io.VideoReader(in_video_path)
-        # take 10 frames uniformly sampled from the video
-        duration = 10 # maximum duration of the video
-        frames = []
-        for i in range(10):
-            reader.seek(1)
-            frame = next(reader)
-            frames.append(frame['data'])        
-        video = torch.stack(frames)
-        #video, audio, info = io.read_video(in_video_path, pts_unit='sec', start_pts=0, end_pts=10, output_format='TCHW')
-        t2 = time.time()
-        video = smart_resize(video, 256)
-        t3 = time.time()
-        torch.save(video, out_video_path)
-        t4 = time.time()
-        print(f"read: {t2-t1}, resize: {t3-t2}, save: {t4-t3}")
-        #video = video.permute(0,2,3,1)
-        #io.write_video(video_path, video, 15, video_codec='h264')
-
-    """
-    for f in tqdm(train_files):
-        in_video_path = os.path.join(dataset_dir, "train_dataset", f)
-        out_video_path = os.path.join(resized_dir, "train_dataset", f[:-3] + "pt")
-        try:
-            resize(in_video_path, out_video_path)
-        except Exception as e:
-            errors.append((f, e))
-        print(f"resized {f} from train")
-    """
-    for f in tqdm(test_files):
-        in_video_path = os.path.join(dataset_dir, "test_dataset", f)
-        out_video_path = os.path.join(resized_dir, "test_dataset", f[:-3] + "pt")
-        try:
-            resize(in_video_path, out_video_path)
-        except Exception as e:
-            errors.append((f, e))
-        print(f"resized {f} from test")
-    for f in tqdm(experimental_files):
-        in_video_path = os.path.join(dataset_dir, "experimental_dataset", f)
-        out_video_path = os.path.join(resized_dir, "experimental_dataset", f[:-3] + "pt")
-        try:
-            resize(in_video_path, out_video_path)
-        except Exception as e:
-            errors.append((f, e))
-        print(f"resized {f} from experimental")
-    os.system(f"cp {os.path.join(dataset_dir, 'train_dataset', 'metadata.json')} {os.path.join(resized_dir, 'train_dataset', 'metadata.json')}")
-    os.system(f"cp {os.path.join(dataset_dir, 'dataset.csv')} {os.path.join(resized_dir, 'dataset.csv')}")
-    os.system(f"cp {os.path.join(dataset_dir, 'experimental_dataset', 'metadata.json')} {os.path.join(resized_dir, 'experimental_dataset', 'metadata.json')}")
-    if errors:
-        print(errors)
-use_small_dataset = False
-
-if use_small_dataset:
-    dataset_dir = resized_dir
+dataset_dir = "./datasets/"
+root_dir = os.path.expanduser("./datasets/")
 
 nb_frames = 30
 
