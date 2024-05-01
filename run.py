@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -20,18 +19,24 @@ import torchvision.transforms as transforms
 
 # UTILITIES
 
-def smart_resize(data, size): # kudos louis
-    # Prends un tensor de shape [...,C,H,W] et le resize en [...C,size,size]
-    # x, y, height et width servent a faire un crop avant de resize
+import matplotlib.pyplot as plt
 
+def display_image(img):
+    # img = img.permute(2,1,0)
+    print(img.shape)
+    plt.imshow(img)
+
+def smart_resize(data, size): # kudos louis
+    # Prends un tensor de shape [...,C,H,W] et le resize en [C,new_height,new_width]
+    # x, y, height et width servent a faire un crop avant de resize
     full_height = data.shape[-2]
     full_width = data.shape[-1]
 
     if full_height > full_width:
         alt_height = size
-        alt_width = int(full_width / (full_height / size))
+        alt_width = int(full_width * full_height / size)
     elif full_height < full_width:
-        alt_height = int(full_height / (full_width / size))
+        alt_height = int(full_height * full_width / size)
         alt_width = size
     else:
         alt_height = size
@@ -40,12 +45,19 @@ def smart_resize(data, size): # kudos louis
         transforms.Resize((alt_height, alt_width)),
         transforms.CenterCrop(size)
     ])
+    print(data.shape)
     return tr(data)
+
+def resize_image(image_tensor, target_size):
+    image_tensor_batched = image_tensor
+    resized_image_batched = F.interpolate(image_tensor_batched.permute(2, 0, 1).unsqueeze(0), size=target_size, mode='bilinear', align_corners=False)
+    resized_image = resized_image_batched.squeeze(0).permute(1,2,0)
+    return resized_image
 
 def resize_data(data, new_height, new_width, x=0, y=0, height=None, width=None):
     # Prends un tensor de shape [...,C,H,W] et le resize en [C,new_height,new_width]
     # x, y, height et width servent a faire un crop avant de resize
-
+    
     full_height = data.shape[-2]
     full_width = data.shape[-1]
     height = full_height - y if height is None else height
@@ -67,8 +79,7 @@ def resize_data(data, new_height, new_width, x=0, y=0, height=None, width=None):
     ])
     x = data[...,y:min(y+height, full_height), x:min(x+width, full_width)].clone()
     return tr(x)
-
-
+    
 # SETUP DATASET
 
 dataset_dir = "/raid/datasets/hackathon2024"
@@ -140,12 +151,12 @@ if not os.path.exists(resized_dir) or create_small_dataset:
     os.system(f"cp {os.path.join(dataset_dir, 'experimental_dataset', 'metadata.json')} {os.path.join(resized_dir, 'experimental_dataset', 'metadata.json')}")
     if errors:
         print(errors)
-use_small_dataset = True
+use_small_dataset = False
 
 if use_small_dataset:
     dataset_dir = resized_dir
 
-nb_frames = 10
+nb_frames = 30
 
 class VideoDataset(Dataset):
     """
@@ -160,6 +171,7 @@ class VideoDataset(Dataset):
         elif  self.dataset_choice == "test":
             self.root_dir = os.path.join(root_dir, "test_dataset")
         elif  self.dataset_choice == "experimental":
+            print(os.path.join(root_dir, "experimental_dataset"))
             self.root_dir = os.path.join(root_dir, "experimental_dataset")
         else:
             raise ValueError("choice must be 'train', 'test' or 'experimental'")
@@ -168,25 +180,27 @@ class VideoDataset(Dataset):
             reader = csv.reader(file)
             # read dataset.csv with id,label columns to create
             # a dict which associated label: id
-            self.ids = {row[1][:-3] + "mp4" : row[0] for row in reader}
-
+            self.ids = {row[1][:-3] + "pt" : row[0] for row in reader}
+            print(self.ids)
         if self.dataset_choice == "test":
             self.data = None
         else:
             with open(os.path.join(self.root_dir, "metadata.json"), 'r') as file:
                 self.data= json.load(file)
-                self.data = {k[:-3] + "mp4" : (torch.tensor(float(1)) if v == 'fake' else torch.tensor(float(0))) for k, v in self.data.items()}
+                self.data = {k[:-3] + "pt" : (torch.tensor(float(1)) if v == 'fake' else torch.tensor(float(0))) for k, v in self.data.items()}
 
-        self.video_files = [f for f in os.listdir(self.root_dir) if f.endswith('.mp4')]
-        #self.video_files = [f for f in os.listdir(self.root_dir) if f.endswith('.pt')]
+        #self.video_files = [f for f in os.listdir(self.root_dir) if f.endswith('.mp4')]
+        #print("actccqfmac.mp4" in self.ids)
+        self.video_files = [f for f in os.listdir(self.root_dir) if f.endswith('.pt')]
 
     def __len__(self):
         return len(self.video_files)
 
     def __getitem__(self, idx):
         video_path = os.path.join(self.root_dir, self.video_files[idx])
-        #video, audio, info = io.read_video(video_path, pts_unit='sec')
-        video = torch.load(video_path)
+        # print(video_path)
+        video, audio, info = io.read_video(video_path, pts_unit='sec')
+        # video = torch.load(video_path)
         '''
         video = video.permute(0,3,1,2)
         length = video.shape[0]
@@ -209,18 +223,13 @@ class VideoDataset(Dataset):
         #video = resize_image(video, (324,567)) / 255
         # video = video / 255
         video=torch.Tensor(np.array(frames))/255
-
-        # resize the data into a reglar shape of 256x256 and normalize it
-        #video = smart_resize(video, 256) / 255
-        #video = video / 255
-
+        # print(self.video_files[idx])
         ID = self.ids[self.video_files[idx]]
         if self.dataset_choice == "test":
             return video, ID
         else:
             label = self.data[self.video_files[idx]]
-            return video, label, ID
-
+            return video, label, ID    
 
 
 train_dataset = VideoDataset(dataset_dir, dataset_choice="train", nb_frames=nb_frames)
@@ -229,19 +238,6 @@ test_dataset = VideoDataset(dataset_dir, dataset_choice="test", nb_frames=nb_fra
 
 
 # MODELE
-
-class DeepfakeDetector(nn.Module):
-    def __init__(self, nb_frames=10):
-        super().__init__()
-        self.dense = nn.Linear(nb_frames*3*256*256,1)
-        self.flat = nn.Flatten()
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        y = self.flat(x)
-        y = self.dense(y)
-        y = self.sigmoid(y)
-        return y
 
 from torch.nn import LogSoftmax
 class CNN(nn.Module):
@@ -300,7 +296,7 @@ class CNN(nn.Module):
 
 # LOGGING
 
-wandb.login(key="a446d513570a79c857317c3000584c5f6d6224f0")
+wandb.login(key="2032122fa7aa881297fbcc27805daa6f416e4667")
 
 run = wandb.init(
     project="automathon",
@@ -316,12 +312,10 @@ run = wandb.init(
 
 # ENTRAINEMENT
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #device = torch.device("mps")
-print("Training model:")
-
 loss_fn = nn.MSELoss()
-model = CNN().to(device)
+model = CNN()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 nb_epochs = 5
 loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
@@ -339,8 +333,8 @@ for epoch in range(nb_epochs):
         print("*************")
         print(label)
         """
-        X = X.to(device)
-        label = label.to(device)
+        X = X
+        label = label
         label_pred = model(X)
         label=torch.unsqueeze(label,dim=1)
         #print(label,label_pred.detach().numpy()[:,0:1])
@@ -352,12 +346,11 @@ for epoch in range(nb_epochs):
         run.log({"loss": loss.item(), "epoch": epoch})
 
 
-
-
 ## TEST
 
+
 loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
-model = model.to(device)
+#model = model.to(device)
 ids = []
 labels = []
 print("Testing...")
@@ -365,7 +358,7 @@ for sample in tqdm(loader):
     X, ID = sample
     X=X.permute(0,4,1,2,3)
     #ID = ID[0]
-    X = X.to(device)
+    #X = X.to(device)
     label_pred = model(X)
     ids.extend(list(ID))
     print(label_pred)
