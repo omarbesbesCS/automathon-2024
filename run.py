@@ -100,7 +100,6 @@ class VideoDataset(Dataset):
         elif  self.dataset_choice == "test":
             self.root_dir = os.path.join(root_dir, "test_dataset")
         elif  self.dataset_choice == "experimental":
-            print(os.path.join(root_dir, "experimental_dataset"))
             self.root_dir = os.path.join(root_dir, "experimental_dataset")
         else:
             raise ValueError("choice must be 'train', 'test' or 'experimental'")
@@ -110,7 +109,7 @@ class VideoDataset(Dataset):
             # read dataset.csv with id,label columns to create
             # a dict which associated label: id
             self.ids = {row[1][:-3] + "pt" : row[0] for row in reader}
-            print(self.ids)
+
         if self.dataset_choice == "test":
             self.data = None
         else:
@@ -119,8 +118,8 @@ class VideoDataset(Dataset):
                 self.data = {k[:-3] + "pt" : (torch.tensor(float(1)) if v == 'fake' else torch.tensor(float(0))) for k, v in self.data.items()}
 
         #self.video_files = [f for f in os.listdir(self.root_dir) if f.endswith('.mp4')]
-        #print("actccqfmac.mp4" in self.ids)
         self.video_files = [f for f in os.listdir(self.root_dir) if f.endswith('.pt')]
+
 
     def __len__(self):
         return len(self.video_files)
