@@ -82,8 +82,8 @@ def resize_data(data, new_height, new_width, x=0, y=0, height=None, width=None):
     
 # SETUP DATASET
 
-dataset_dir = "./datasets/"
-root_dir = os.path.expanduser("./datasets/")
+dataset_dir = "/raid/datasets/hackathon2024"
+root_dir = os.path.expanduser("~/automathon-2024")
 
 nb_frames = 30
 
